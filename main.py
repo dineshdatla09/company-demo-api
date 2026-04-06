@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional
 from enum import Enum
 
@@ -20,6 +20,10 @@ class CompanyType(str, Enum):
     fully_outsourced = "Fully Outsourced"
     self_managed = "Self Managed"
 
+class BrokerAgreementStatus(str, Enum):
+    exclusive = "Exclusive"
+    nonexclusive = "Non-exclusive"
+
 # --- Company Model (mirrors the UI form exactly) ---
 class Company(BaseModel):
     # Required fields (marked with * on the UI)
@@ -35,22 +39,37 @@ class Company(BaseModel):
     drop_box_url: Optional[str] = None
 
     # Products checkboxes (False = unchecked, True = checked)
-    stock_plan_administration_software: Optional[bool] = False
-    employee_services: Optional[bool] = False
+    stock_plan_administration_software: bool
+    employee_services: bool
+    stock_plan_administration_software: bool
+    employee_services: bool
 
-    class Config:
+    # Broker Agreement — only required when employee_services is True
+    broker_agreement: Optional[BrokerAgreementStatus] = None
+
+    # --- Validation: if employee_services is checked, broker_agreement is mandatory ---
+    @model_validator(mode="after")
+    def check_broker_agreement(self):
+        if self.employee_services and self.broker_agreement is None:
+            raise ValueError("broker_agreement is required when employee_services is selected")
+        return self
+
+
+class Config:
         json_schema_extra = {
             "example": {
-                "company_name": "Acme Corp",
-                "ticker_symbol": "ACME",
-                "file_ticker": "ACME_FILE",
+                "company_name": "Test Corp",
+                "ticker_symbol": "TEST",
+                "file_ticker": "TEST_FILE",
                 "sales_force_account_id": "SF-001234",
                 "client_status": "Deployed",
                 "company_type": "Co-Sourced",
-                "company_logo_file_name": "acme_logo.png",
-                "drop_box_url": "https://dropbox.com/acme",
+                "company_logo_file_name": "test_logo.png",
+                "drop_box_url": "https://dropbox.com/test",
                 "stock_plan_administration_software": True,
-                "employee_services": False
+                "employee_services": True,
+                "broker_agreement": "Exclusive"
+
             }
         }
 
